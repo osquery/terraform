@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "bucket" {
-  bucket = "osquery-foundation-terraform-state"
+  bucket = "osquery-terraform-state"
   acl    = "private"
   region = "eu-west-2" 
 
