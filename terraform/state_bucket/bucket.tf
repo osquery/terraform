@@ -1,7 +1,7 @@
 resource "aws_s3_bucket" "bucket" {
   bucket = "osquery-terraform-state"
   acl    = "private"
-  region = "eu-west-2" 
+  region = "us-east-1" 
 
   server_side_encryption_configuration {
     rule {
