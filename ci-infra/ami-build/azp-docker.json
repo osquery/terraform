@@ -1,0 +1,40 @@
+{
+  "variables": {
+  },
+  "builders": [
+    {
+      "export_path": "image.tar",
+      "image": "ubuntu:20.04",
+      "type": "docker"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "mkdir -p /srv/runner/tmpscripts"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "scripts",
+      "destination": "/srv/runner/tmpscripts"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "ln -snf /usr/share/zoneinfo/$TZ /etc/localtime",
+        "echo $TZ > /etc/timezone",
+        "apt-get update",
+        "apt-get install -y sudo systemd"
+      ],
+      "environment_vars": [
+        "TZ=Etc/UTC"
+      ]
+    },
+    {
+      "script": "agent-setup.sh",
+      "type": "shell"
+    }
+  ]
+}
