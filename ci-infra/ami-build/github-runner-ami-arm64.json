@@ -1,0 +1,51 @@
+{
+  "provisioners": [
+    {
+      "inline": [
+        "mkdir -p /tmp/transfer"
+      ],
+      "type": "shell"
+    },
+    {
+      "destination": "/tmp/transfer",
+      "source": "scripts",
+      "type": "file"
+    },
+    {
+      "type": "shell",
+      "script": "agent-setup.sh"
+    }
+  ],
+  "builders": [
+    {
+      "encrypt_boot": true,
+      "security_group_ids": [],
+      "tags": {
+      },
+      "run_tags": {
+        "Project": "Packer"
+      },
+      "run_volume_tags": {
+        "Project": "Packer"
+      },
+      "ami_name": "github-runner-ami-arm64-{{timestamp}}",
+      "ssh_username": "ubuntu",
+      "instance_type": "r6g.large",
+      "source_ami_filter": {
+        "most_recent": true,
+        "owners": [
+          "099720109477"
+        ],
+        "filters": {
+          "root-device-type": "ebs",
+          "name": "ubuntu/images/*ubuntu-focal-20.04-arm64-server-*",
+          "virtualization-type": "hvm"
+        }
+      },
+      "region": "us-east-1",
+      "type": "amazon-ebs"
+    }
+  ],
+  "variables": {
+  }
+}

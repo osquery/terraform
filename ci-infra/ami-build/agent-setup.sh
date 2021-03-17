@@ -14,7 +14,7 @@ ARCH=$(dpkg --print-architecture)
 
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
-apt-get install -y tzdata
+sudo apt-get install -y tzdata
 sudo apt-get -y upgrade
 
 echo "Installing required packages for apt repos"
@@ -25,7 +25,7 @@ curl -L https://download.docker.com/linux/ubuntu/gpg \
 sudo apt-key adv --list-public-keys --with-fingerprint --with-colons 0EBFCD88 2>/dev/null \
     | grep 'fpr' | head -n1 | grep '9DC858229FC7DD38854AE2D88D81803C0EBFCD88'
 sudo add-apt-repository -y "deb [arch=${ARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-sudo apt-add-repository -y ppa:git-core/ppa
+#sudo apt-add-repository -y ppa:git-core/ppa
 
 sudo apt-get update
 
@@ -50,7 +50,7 @@ sudo chown -R github-runner:github-runner /srv/runner/
 ## Setup GitHub Runner Agent
 ##
 
-# Normalize ARCH variable
+# Normalize ARCH variable for x64
 [[ "${ARCH}" == "amd64" ]] && ARCH=x64
 
 AGENT_VERSION=2.277.1
@@ -69,8 +69,7 @@ ssh-keyscan github.com \
 
 
 
-sudo chown root:root /srv/runner/tmpscripts/*.sh
-sudo chmod 0755 /srv/runner/tmpscripts/*.sh
-sudo mv /srv/runner/tmpscripts/*.sh /usr/local/bin
-
-rm -rf /srv/runner/tmpscripts
+sudo chown root:root /tmp/transfer/scripts/*.sh
+sudo chmod 0755 /tmp/transfer/scripts/*.sh
+sudo mv /tmp/transfer/scripts/*.sh /usr/local/bin
+rm -rf /tmp/transfer
