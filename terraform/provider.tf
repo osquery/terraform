@@ -1,16 +1,3 @@
-terraform {
-  required_version = "0.14.8"
-
-  # When bootstrapping this, you will have to manually disable this and set the bucket up first.
-  backend "s3" {
-    bucket         = "osquery-terraform-state"
-    region         = "us-east-1"
-    key            = "tf/osquery/aws/state_bucket.tfstate"
-    role_arn       = "arn:aws:iam::107349553668:role/IdentityAccountAccessRole"
-    dynamodb_table = "osquery-terraform-state"
-  }
-}
-
 # This is the default provider. It will use whatever from the environment.
 provider "aws" {
   region = local.main_region
