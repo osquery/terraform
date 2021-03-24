@@ -19,7 +19,7 @@ locals {
       {
 	rule_number = 120
 	rule_action = "allow"
-	from_port   = 0
+	from_port   = 1024
 	to_port     = 65535
 	protocol    = "tcp"
 	cidr_block  = "24.61.10.2/32" # seph's house
@@ -27,8 +27,6 @@ locals {
     ]
   }
 }
-
-
 
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
@@ -44,9 +42,16 @@ module "vpc" {
   public_inbound_acl_rules  = local.network_acls["public_inbound"]
   public_outbound_acl_rules = local.network_acls["public_outbound"]
 
+  manage_default_network_acl = true
+
   # TODO
   private_dedicated_network_acl     = false
 
+  # FIXME: I can't get this to work
+  enable_sts_endpoint = true
+  sts_endpoint_security_group_ids = [data.aws_security_group.default.id]
+  sts_endpoint_subnet_ids = module.vpc.public_subnets
+  #sts_endpoint_private_dns_enabled = true
 
   enable_public_s3_endpoint = true
 
@@ -61,3 +66,18 @@ module "vpc" {
   }
 
 }
+
+# I'm not totally sure why we need these. It seems to be a
+# self-referencial loop. But, the docs for this module suggest it, and
+# it's probably to avoid a weird race in creation ordering.
+data "aws_security_group" "default" {
+  provider = aws.osquery-dev
+  name   = "default"
+  vpc_id = module.vpc.vpc_id
+}
+
+#data "aws_subnet" "vpc-public" {
+#  provider = aws.osquery-dev
+#  name   = "public_subnets"
+#  vpc_id = module.vpc.vpc_id
+#}
