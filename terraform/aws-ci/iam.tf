@@ -15,7 +15,10 @@
 # References:
 # https://medium.com/swlh/aws-iam-assuming-an-iam-role-from-an-ec2-instance-882081386c49
 # https://aws.amazon.com/premiumsupport/knowledge-center/iam-ec2-resource-tags/
-
+#
+# Some testing snippets. These should get documented elsewhere
+#
+#
 
 data "aws_iam_policy_document" "runner_implicit_role" {
   statement {
@@ -63,6 +66,31 @@ resource "aws_iam_instance_profile" "runner_implicit_instance_profile" {
   role = aws_iam_role.runner_implicit_role.name
 }
 
+##
+## Policies used in bootstrapping
+##
+
+data "aws_iam_policy_document" "runner_secret_reader" {
+  statement {
+    actions   = [
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:ListSecretVersionIds",
+    ]
+    resources = [
+      "arn:aws:secretsmanager:*:204725418487:secret:OSQUERY_GITHUB_RUNNER_TOKEN-9N6Lwh",
+    ]
+  }
+}
+
+resource "aws_iam_policy" "runner_secret_reader" {
+  provider = aws.osquery-dev
+  name = "OsqueryGitHubRunnerSecretReader"
+  description = "Read access to the github runner secrets"
+  policy = data.aws_iam_policy_document.runner_secret_reader.json
+}
+
 
 ##
 ## Bootstrap / Initialization Role
@@ -82,4 +110,7 @@ resource "aws_iam_role" "runner_bootstrap" {
   provider = aws.osquery-dev
   name = "GitHubRunnerAssumedBootstrapRole"
   assume_role_policy = data.aws_iam_policy_document.runner_bootstrap.json
+  managed_policy_arns = [
+    "arn:aws:iam::204725418487:policy/OsqueryGitHubRunnerSecretReader", # This was created out-of-band
+  ]
 }
