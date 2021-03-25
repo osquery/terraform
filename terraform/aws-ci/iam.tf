@@ -1,3 +1,13 @@
+# FIXME: I have IAM conditions backwards. They apply to the _target_
+# not the source. As such, they are not suitable for this kind of
+# scheme. Study https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html and be sad
+#
+# Maybe security groups???
+#
+# Maybe assign a specific policy?
+#
+# attach/replace policy?
+
 # the crux of our permissions problem, is that we need to _bootstrap_
 # a machine, which requires elevated permissions. And then we need to
 # drop permissions, and start a runner. This is implemented using IAM
@@ -20,6 +30,7 @@
 #
 #
 
+# This policy lets EC2 assume this node's role
 data "aws_iam_policy_document" "runner_implicit_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -31,11 +42,35 @@ data "aws_iam_policy_document" "runner_implicit_role" {
   }
 }
 
+
+# bootstrap instance profile
 resource "aws_iam_role" "runner_implicit_role" {
   provider = aws.osquery-dev
   name = "GitHubRunnerImplicitIamRole"
   assume_role_policy = data.aws_iam_policy_document.runner_implicit_role.json
 }
+
+resource "aws_iam_instance_profile" "runner_implicit_instance_profile" {
+  provider = aws.osquery-dev
+  name = "GitHubRunnerImplicitIamRole"
+  role = aws_iam_role.runner_implicit_role.name
+}
+
+
+# Runtime intance profile
+resource "aws_iam_role" "runner_runtime_implicit_role" {
+  provider = aws.osquery-dev
+  name = "GitHubRunnerRuntimeImplicitIamRole"
+  assume_role_policy = data.aws_iam_policy_document.runner_implicit_role.json
+}
+
+resource "aws_iam_instance_profile" "runner_runtime_implicit_role" {
+  provider = aws.osquery-dev
+  name = "GitHubRunnerRuntimeImplicitIamRole"
+  role = aws_iam_role.runner_runtime_implicit_role.name
+}
+
+
 
 # Create IAM policy to give implicit role permission to assume broad IAM Role
 # Sadly, we cannot use tags to restrict this. So say the docs (and it doesn't work)
@@ -43,7 +78,10 @@ data "aws_iam_policy_document" "runner_role_permit_sts_assume" {
   statement {
     actions = ["sts:AssumeRole"]
     resources = [ aws_iam_role.runner_bootstrap.arn ]
+
+    # FIXME: tag conditions here?
   }
+
 }
 
 resource "aws_iam_policy" "runner_role_permit_sts_assume" {
@@ -63,11 +101,6 @@ resource "aws_iam_role_policy_attachment" "runner_attach_implicit_role_to_sts_as
   }
 }
 
-resource "aws_iam_instance_profile" "runner_implicit_instance_profile" {
-  provider = aws.osquery-dev
-  name = "GitHubRunnerImplicitIamRole"
-  role = aws_iam_role.runner_implicit_role.name
-}
 
 ##
 ## Policies used in bootstrapping
@@ -85,11 +118,12 @@ data "aws_iam_policy_document" "runner_secret_reader" {
       "arn:aws:secretsmanager:*:204725418487:secret:OSQUERY_GITHUB_RUNNER_TOKEN-9N6Lwh",
     ]
 
-    condition {
-      test = "StringEquals"
-      variable = "aws:TagKeys"
-      values = [ "Bootstrapping" ]
-    }
+    #condition {
+    #  test = "StringEquals"
+    #  variable = "aws:TagKeys"
+    #  values = [ "Bootstrapping" ]
+    #}
+
 
   }
 }
@@ -100,6 +134,41 @@ resource "aws_iam_policy" "runner_secret_reader" {
   description = "Read access to the github runner secrets"
   policy = data.aws_iam_policy_document.runner_secret_reader.json
 }
+
+
+
+data "aws_iam_policy_document" "ec2_instance_downgrader" {
+  statement {
+    actions   = [
+      "ec2:ReplaceIamInstanceProfileAssociation",
+      "ec2:DescribeIamInstanceProfileAssociations",
+      "iam:PassRole", # Needed to scope this account to passing this role
+    ]
+    resources = [
+      "*"
+    ]
+
+    # TODO: conditions?
+    # iam:RoleName GitHubRunnerRuntimeImplicitIamRole
+    # aws:Resource role/GitHubRunnerRuntimeImplicitIamRole
+    #condition {
+    #  test = "StringEquals"
+    #  variable = "aws:TagKeys"
+    #  values = [ "Bootstrapping" ]
+    #}
+
+
+  }
+}
+
+resource "aws_iam_policy" "ec2_instance_downgrader" {
+  provider = aws.osquery-dev
+  name = "GitHubRunnerInstanceDowngrader"
+  description = "Permission to downgrade an instances IAM role"
+  policy = data.aws_iam_policy_document.ec2_instance_downgrader.json
+}
+
+
 
 
 ##
@@ -113,15 +182,31 @@ data "aws_iam_policy_document" "runner_bootstrap" {
       identifiers = [aws_iam_role.runner_implicit_role.arn]
     }
     actions = [ "sts:AssumeRole" ]
+
+    # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html#condition-keys-principaltag
+    #condition {
+    #  test = "StringEquals"
+    #  variable = "aws:PrincipalTag/Bootstrapping"
+    #  values = [ "true" ]
+    #}
   }
 }
 
 resource "aws_iam_role" "runner_bootstrap" {
-  # FIXME: where to we set the trust policy here?
   provider = aws.osquery-dev
   name = "GitHubRunnerAssumedBootstrapRole"
   assume_role_policy = data.aws_iam_policy_document.runner_bootstrap.json
   managed_policy_arns = [
-   aws_iam_policy.runner_secret_reader.arn,
+    aws_iam_policy.runner_secret_reader.arn,
+    aws_iam_policy.ec2_instance_downgrader.arn,
   ]
+}
+
+
+##
+## Runtime Permissions
+##
+
+data "aws_iam_policy_document" "runner_runtime_implicit_role" {
+
 }
