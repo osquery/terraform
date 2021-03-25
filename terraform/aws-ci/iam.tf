@@ -38,6 +38,7 @@ resource "aws_iam_role" "runner_implicit_role" {
 }
 
 # Create IAM policy to give implicit role permission to assume broad IAM Role
+# Sadly, we cannot use tags to restrict this. So say the docs (and it doesn't work)
 data "aws_iam_policy_document" "runner_role_permit_sts_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -50,6 +51,8 @@ resource "aws_iam_policy" "runner_role_permit_sts_assume" {
   name = "GitHubRunnerPolicyPermitStsAssume"
   policy = data.aws_iam_policy_document.runner_role_permit_sts_assume.json
 }
+
+
 
 resource "aws_iam_role_policy_attachment" "runner_attach_implicit_role_to_sts_assume_policy" {
   provider = aws.osquery-dev
@@ -81,6 +84,13 @@ data "aws_iam_policy_document" "runner_secret_reader" {
     resources = [
       "arn:aws:secretsmanager:*:204725418487:secret:OSQUERY_GITHUB_RUNNER_TOKEN-9N6Lwh",
     ]
+
+    condition {
+      test = "StringEquals"
+      variable = "aws:TagKeys"
+      values = [ "Bootstrapping" ]
+    }
+
   }
 }
 
@@ -107,10 +117,11 @@ data "aws_iam_policy_document" "runner_bootstrap" {
 }
 
 resource "aws_iam_role" "runner_bootstrap" {
+  # FIXME: where to we set the trust policy here?
   provider = aws.osquery-dev
   name = "GitHubRunnerAssumedBootstrapRole"
   assume_role_policy = data.aws_iam_policy_document.runner_bootstrap.json
   managed_policy_arns = [
-    "arn:aws:iam::204725418487:policy/OsqueryGitHubRunnerSecretReader", # This was created out-of-band
+   aws_iam_policy.runner_secret_reader.arn,
   ]
 }

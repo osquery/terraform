@@ -17,6 +17,7 @@ aws sts assume-role \
 export AWS_ACCESS_KEY_ID=$(jq -rc .Credentials.AccessKeyId $TMPFILE)
 export AWS_SECRET_ACCESS_KEY=$(jq -rc .Credentials.SecretAccessKey $TMPFILE)
 export AWS_SESSION_TOKEN=$(jq -rc .Credentials.SessionToken $TMPFILE)
+rm -f "$TMPFILE"
 
 echo "New Role:"
 aws sts get-caller-identity
